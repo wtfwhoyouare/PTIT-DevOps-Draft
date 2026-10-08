@@ -1,0 +1,10 @@
+{
+  "name": "DevOps-Draft overall code",
+  "conditions": [
+    {"metric": "security_rating", "op": "GT", "error": "1"},
+    {"metric": "reliability_rating", "op": "GT", "error": "1"},
+    {"metric": "sqale_rating", "op": "GT", "error": "1"},
+    {"metric": "security_hotspots_reviewed", "op": "LT", "error": "100"},
+    {"metric": "duplicated_lines_density", "op": "GT", "error": "10"}
+  ]
+}

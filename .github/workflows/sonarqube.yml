@@ -1,0 +1,121 @@
+name: SonarQube
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      enforce_quality_gate:
+        description: Fail the job when the quality gate fails (false = report-only)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# Independent servers: a newer commit may replace an obsolete scan.
+concurrency:
+  group: sonarqube-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: PHP analysis and report
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SONAR_HOST_URL: http://127.0.0.1:9000
+      SONAR_IMAGE: sonarqube:26.9.0.129388-community@sha256:c0f1160bccfa435db4168c2d7df69af3c3ea7bfeb87395613014048fb33a68c1
+      SONAR_SCANNER_VERSION: 8.1.0.6389
+      REPORT_DIR: reports/sonarqube
+      ENFORCE_QUALITY_GATE: ${{ github.event_name != 'workflow_dispatch' || inputs.enforce_quality_gate }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test report tooling
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Lint PHP 8.2
+        id: lint
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          docker run --rm --network none \
+            --mount "type=bind,src=$GITHUB_WORKSPACE/InlaneWeb/web/src,dst=/src,readonly" \
+            php:8.2-cli sh -c 'find /src -type f -name "*.php" -print0 | xargs -0 -r -n 1 php -l' \
+            2>&1 | tee "$REPORT_DIR/php-lint.log"
+
+      - name: Start ephemeral SonarQube
+        id: server
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          if [ "$(sysctl -n vm.max_map_count)" -lt 524288 ]; then
+            sudo sysctl -w vm.max_map_count=524288
+          fi
+          if [ "$(sysctl -n fs.file-max)" -lt 131072 ]; then
+            sudo sysctl -w fs.file-max=131072
+          fi
+          docker run -d --name sonarqube-ci --memory=4g \
+            --publish 127.0.0.1:9000:9000 \
+            --ulimit nofile=131072:131072 --ulimit nproc=8192:8192 \
+            --env SONAR_MULTI_QUALITY_MODE_ENABLED=false \
+            --env SONAR_TELEMETRY_ENABLE=false \
+            "$SONAR_IMAGE"
+          python3 ci/sonarqube.py bootstrap --timeout 420
+
+      - name: Analyze source
+        id: scan
+        continue-on-error: true
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        with:
+          scannerVersion: ${{ env.SONAR_SCANNER_VERSION }}
+          args: >-
+            -Dsonar.scm.revision=${{ github.sha }}
+
+      - name: Export report and GitHub Summary
+        id: report
+        if: ${{ always() && !cancelled() }}
+        env:
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          SERVER_OUTCOME: ${{ steps.server.outcome }}
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+        run: python3 ci/sonarqube.py report --timeout 600
+
+      - name: Capture container diagnostics
+        if: ${{ always() && !cancelled() }}
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          docker logs sonarqube-ci > "$REPORT_DIR/server.log" 2>&1 || true
+          docker inspect --format '{{json .State}}' sonarqube-ci > "$REPORT_DIR/container-state.json" 2>/dev/null || true
+
+      - name: Upload report
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sonarqube-report-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/sonarqube/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce pipeline result
+        if: ${{ always() && !cancelled() }}
+        env:
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          SERVER_OUTCOME: ${{ steps.server.outcome }}
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+          REPORT_OUTCOME: ${{ steps.report.outcome }}
+        run: python3 ci/sonarqube.py check
+
+      - name: Remove temporary server
+        if: always()
+        run: docker rm --force --volumes sonarqube-ci || true

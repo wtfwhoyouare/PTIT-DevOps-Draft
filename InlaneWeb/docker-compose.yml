@@ -1,0 +1,61 @@
+# ============================================================================
+#  IlFreight Logistics — Intentionally Vulnerable SQL Injection Lab
+#  ------------------------------------------------------------------
+#  CANH BAO / WARNING:
+#  Lab nay CO Y de lo (vulnerable-by-design) cho muc dich DAO TAO.
+#  - Web chi bind 127.0.0.1 -> khong ai tu ben ngoai truy cap duoc.
+#  - Cho phep OUTBOUND (de minh hoa OOB exfil) -> chi chay khi duoc uy quyen.
+#  - TUYET DOI khong deploy ra internet / moi truong production.
+# ============================================================================
+services:
+  db:
+    build: ./db
+    container_name: ilfreight_db
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_ROOT_HOST: "%"
+    # KHONG expose port DB ra host -> chi web container ket noi noi bo.
+    networks:
+      - labnet
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - db_data:/var/lib/mysql
+      # thu muc chia se de minh hoa LOAD_FILE / INTO OUTFILE (secure_file_priv)
+      - shared_files:/var/lib/mysql-files
+
+  web:
+    build: ./web
+    container_name: ilfreight_web
+    depends_on:
+      db:
+        condition: service_healthy
+    # CHI bind localhost cua host -> lab khong lo ra mang LAN/internet.
+    ports:
+      - "127.0.0.1:8088:80"
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASS: password
+      DB_NAME: ilfreight
+      # Host de OOB exfil (Burp Collaborator / interactsh / server cua ban).
+      # De trong -> phan OOB se hien huong dan tu dat host.
+      OOB_HOST: ""
+    networks:
+      - labnet
+    volumes:
+      - ./web/src:/var/www/html:ro
+      # Thu muc chia se: MySQL ghi vao /var/lib/mysql-files (phia db),
+      # con phia web no duoc phuc vu tai /files -> minh hoa INTO OUTFILE web shell.
+      - shared_files:/var/www/html/files
+
+networks:
+  labnet:
+    driver: bridge
+
+volumes:
+  db_data:
+  shared_files:

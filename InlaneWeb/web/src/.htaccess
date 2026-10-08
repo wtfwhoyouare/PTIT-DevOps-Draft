@@ -1,0 +1,11 @@
+# URL sach kieu app that: dua moi request ve front controller (index.php),
+# tru khi la file tinh (css/js/img) thuc su ton tai.
+RewriteEngine On
+
+# Cho phep file tinh duoc phuc vu truc tiep
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Con lai -> index.php (router se doc PATH_INFO)
+RewriteRule ^ index.php [QSA,L]

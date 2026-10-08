@@ -1,0 +1,10 @@
+[mysqld]
+# ============================================================
+#  Cau hinh CO Y de lo cho lab SQLi
+# ============================================================
+# secure_file_priv rong -> LOAD_FILE() va SELECT ... INTO OUTFILE
+# doc/ghi duoc o BAT KY vi tri nao (phuc vu Reading/Writing files + OOB).
+secure_file_priv = ""
+
+# Cho phep LOAD DATA LOCAL INFILE
+local_infile = 1

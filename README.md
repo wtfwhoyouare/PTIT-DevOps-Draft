@@ -120,6 +120,26 @@ xuất report, report-only không che lỗi thực thi, timeout/missing metadata
 zero PHP files và không ghi credential vào báo cáo. Không dùng kết quả mock
 này để kết luận container/scanner tích hợp đã chạy thành công.
 
+### Khi GitHub không cho chạy workflow
+
+GitHub Actions phải hoạt động cho tài khoản sở hữu repository. Nếu chạy thủ công
+báo `HTTP 422: Actions has been disabled for this user`, đây là blocker cấp tài
+khoản dù API quyền repository có thể vẫn trả `enabled: true`. Kiểm tra thông báo
+trong trang Actions; nếu tài khoản đang bị GitHub vô hiệu hóa Actions, liên hệ
+[GitHub Support](https://support.github.com/) để được xem xét. Đổi quyền repository
+không tự khắc phục trạng thái vô hiệu hóa riêng này.
+
+Sau khi GitHub mở lại Actions, chạy kiểm chứng đầu tiên ở chế độ report-only:
+
+```powershell
+gh workflow run sonarqube.yml --ref main -f enforce_quality_gate=false
+gh run list --workflow sonarqube.yml --limit 5
+```
+
+Xác nhận job hoàn tất phần scan/export và tải được `report.html`. Sau đó chạy
+lại với `enforce_quality_gate=true` để xác nhận job đỏ đúng khi gate không đạt.
+Xem [hướng dẫn trạng thái Actions bị vô hiệu hóa](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository).
+
 ### Tài liệu
 
 - [SonarQube Docker evaluation](https://docs.sonarsource.com/sonarqube-community-build/try-out-sonarqube)

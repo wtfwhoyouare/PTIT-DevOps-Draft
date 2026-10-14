@@ -260,6 +260,51 @@ def render_report(report_dir: Path, metadata: dict, result: dict | None, error: 
         summary.extend(["| Severity | Issues |", "| --- | ---: |"])
         summary.extend(f"| {severity} | {count} |" for severity, count in sorted(issue_counts.items()))
         summary.append("")
+
+    if result["issues"]:
+        summary.extend([
+            f"### Chi tiết danh sách tất cả Issues ({len(result['issues'])})",
+            "",
+            "| Mức độ | Phân loại | Vị trí (Tệp:Dòng) | Rule ID | Chi tiết vi phạm |",
+            "| --- | --- | --- | --- | --- |",
+        ])
+        for item in result["issues"]:
+            component = item.get("component", "")
+            path = component.removeprefix(metadata.get("project_key", "") + ":")
+            line = item.get("line", item.get("textRange", {}).get("startLine", ""))
+            link = source_link(component, line, metadata.get("project_key", ""), metadata.get("repository", ""), metadata.get("commit", ""))
+            loc = escape(path + (f":{line}" if line else ""))
+            if link:
+                loc = f"[{loc}]({link})"
+            sev = escape(item.get("severity", ""))
+            itype = escape(item.get("type", ""))
+            rule = escape(item.get("rule", ""))
+            msg = escape(item.get("message", "")).replace("\n", " ").replace("|", "&#124;")
+            summary.append(f"| **{sev}** | {itype} | {loc} | `{rule}` | {msg} |")
+        summary.append("")
+
+    if result["hotspots"]:
+        summary.extend([
+            f"### Chi tiết Security Hotspots ({len(result['hotspots'])})",
+            "",
+            "| Mức độ | Phân loại | Vị trí (Tệp:Dòng) | Rule ID | Chi tiết vi phạm |",
+            "| --- | --- | --- | --- | --- |",
+        ])
+        for item in result["hotspots"]:
+            component = item.get("component", "")
+            path = component.removeprefix(metadata.get("project_key", "") + ":")
+            line = item.get("line", item.get("textRange", {}).get("startLine", ""))
+            link = source_link(component, line, metadata.get("project_key", ""), metadata.get("repository", ""), metadata.get("commit", ""))
+            loc = escape(path + (f":{line}" if line else ""))
+            if link:
+                loc = f"[{loc}]({link})"
+            prob = escape(item.get("vulnerabilityProbability", ""))
+            cat = escape(item.get("securityCategory", ""))
+            rule = escape(item.get("ruleKey", ""))
+            msg = escape(item.get("message", "")).replace("\n", " ").replace("|", "&#124;")
+            summary.append(f"| **{prob}** | {cat} | {loc} | `{rule}` | {msg} |")
+        summary.append("")
+
     if error:
         summary.extend(["### Analysis/export error", "", escape(error), ""])
     conditions = result["gate"].get("conditions", [])

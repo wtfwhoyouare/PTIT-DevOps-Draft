@@ -40,7 +40,20 @@ jobs:
       - name: Test report tooling
         run: python3 -m unittest discover -s tests -v
 
+      - name: Check PHP source presence
+        id: check_php
+        shell: bash
+        run: |
+          if python3 -c "import glob, sys; sys.exit(0 if glob.glob('InlaneWeb/web/src/**/*.php', recursive=True) else 1)"; then
+            echo "has_php=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_php=false" >> "$GITHUB_OUTPUT"
+            echo "## ℹ️ SonarQube SAST - Khung CI/CD sẵn sàng" >> "$GITHUB_STEP_SUMMARY"
+            echo "Khung CI/CD đã được cấu hình hoàn chỉnh. Hiện chưa có tệp PHP nào trong \`InlaneWeb/web/src\`. Pipeline sẽ tự động quét toàn diện ngay khi mã nguồn được commit và push." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Lint PHP 8.2
+        if: steps.check_php.outputs.has_php == 'true'
         id: lint
         continue-on-error: true
         shell: bash
@@ -53,6 +66,7 @@ jobs:
             2>&1 | tee "$REPORT_DIR/php-lint.log"
 
       - name: Start ephemeral SonarQube
+        if: steps.check_php.outputs.has_php == 'true'
         id: server
         shell: bash
         run: |
@@ -73,6 +87,7 @@ jobs:
           python3 ci/sonarqube.py bootstrap --timeout 420
 
       - name: Analyze source
+        if: steps.check_php.outputs.has_php == 'true'
         id: scan
         continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
@@ -83,7 +98,7 @@ jobs:
 
       - name: Export report and GitHub Summary
         id: report
-        if: ${{ always() && !cancelled() }}
+        if: steps.check_php.outputs.has_php == 'true' && always() && !cancelled()
         env:
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           SERVER_OUTCOME: ${{ steps.server.outcome }}
@@ -91,7 +106,7 @@ jobs:
         run: python3 ci/sonarqube.py report --timeout 600
 
       - name: Capture container diagnostics
-        if: ${{ always() && !cancelled() }}
+        if: steps.check_php.outputs.has_php == 'true' && always() && !cancelled()
         shell: bash
         run: |
           mkdir -p "$REPORT_DIR"
@@ -99,7 +114,7 @@ jobs:
           docker inspect --format '{{json .State}}' sonarqube-ci > "$REPORT_DIR/container-state.json" 2>/dev/null || true
 
       - name: Upload report
-        if: ${{ always() && !cancelled() }}
+        if: steps.check_php.outputs.has_php == 'true' && always() && !cancelled()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sonarqube-report-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -108,7 +123,7 @@ jobs:
           retention-days: 30
 
       - name: Enforce pipeline result
-        if: ${{ always() && !cancelled() }}
+        if: steps.check_php.outputs.has_php == 'true' && always() && !cancelled()
         env:
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           SERVER_OUTCOME: ${{ steps.server.outcome }}
@@ -117,7 +132,7 @@ jobs:
         run: python3 ci/sonarqube.py check
 
       - name: Remove temporary server
-        if: always()
+        if: steps.check_php.outputs.has_php == 'true' && always()
         run: docker rm --force --volumes sonarqube-ci || true
 
   semgrep:
@@ -129,7 +144,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Check PHP source presence
+        id: check_php
+        shell: bash
+        run: |
+          if python3 -c "import glob, sys; sys.exit(0 if glob.glob('InlaneWeb/web/src/**/*.php', recursive=True) else 1)"; then
+            echo "has_php=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_php=false" >> "$GITHUB_OUTPUT"
+            echo "## 🛡️ Semgrep Security SAST - Sẵn sàng" >> "$GITHUB_STEP_SUMMARY"
+            echo "Chưa phát hiện mã nguồn PHP để quét bảo mật. Pipeline sẽ tự động quét chi tiết Source & Sink khi các thành viên commit mã nguồn." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Run Semgrep SAST
+        if: steps.check_php.outputs.has_php == 'true'
         shell: bash
         run: |
           mkdir -p reports/semgrep
@@ -142,9 +170,11 @@ jobs:
             InlaneWeb/web/src || true
 
       - name: Generate Semgrep Reports
+        if: steps.check_php.outputs.has_php == 'true'
         run: python3 ci/semgrep_report.py
 
       - name: Upload Semgrep report
+        if: steps.check_php.outputs.has_php == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: semgrep-security-report-${{ github.sha }}-${{ github.run_id }}

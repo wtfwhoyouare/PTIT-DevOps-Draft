@@ -75,7 +75,7 @@ class Api:
         except HTTPError as exc:
             detail = redact(exc.read().decode("utf-8", errors="replace"))[:500]
             raise SonarError(f"API {endpoint}: HTTP {exc.code}: {detail}") from exc
-        except (URLError, TimeoutError) as exc:
+        except (URLError, TimeoutError, OSError) as exc:
             raise SonarError(f"API {endpoint}: {redact(str(exc))}") from exc
         if not body:
             return {}

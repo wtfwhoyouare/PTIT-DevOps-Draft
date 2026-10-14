@@ -119,3 +119,33 @@ jobs:
       - name: Remove temporary server
         if: always()
         run: docker rm --force --volumes sonarqube-ci || true
+
+  semgrep:
+    name: Semgrep Security SAST
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run Semgrep SAST
+        shell: bash
+        run: |
+          mkdir -p reports/semgrep
+          pipx run semgrep scan \
+            --config "p/owasp-top-ten" \
+            --config "p/php" \
+            --config "ci/semgrep-rules.yml" \
+            --json -o reports/semgrep/semgrep.json \
+            InlaneWeb/web/src || true
+
+      - name: Generate Semgrep Reports
+        run: python3 ci/semgrep_report.py
+
+      - name: Upload Semgrep report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: semgrep-security-report-${{ github.sha }}-${{ github.run_id }}
+          path: reports/semgrep/
+          retention-days: 30

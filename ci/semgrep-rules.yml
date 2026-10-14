@@ -1,0 +1,68 @@
+rules:
+  - id: ilfreight-sqli-custom-query
+    languages: [php]
+    message: "Detected SQL query constructed with unescaped variable interpolation: $SQL"
+    severity: ERROR
+    metadata:
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp: "A03:2021 - Injection"
+      category: security
+      technology: [php, mysql]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $SQL = "...";
+              ...
+              query($SQL, ...);
+          - pattern: |
+              $SQL = "...";
+              ...
+              query_one($SQL, ...);
+          - pattern: |
+              $SQL = "...";
+              ...
+              exec_write($SQL, ...);
+          - pattern: |
+              $SQL = "...";
+              ...
+              exec_multi($SQL, ...);
+          - pattern: query("...", ...);
+          - pattern: query_one("...", ...);
+          - pattern: exec_write("...", ...);
+          - pattern: exec_multi("...", ...);
+
+  - id: php-insecure-direct-object-reference-delete
+    languages: [php]
+    message: "Potential Insecure Direct Object Reference (IDOR) on comment deletion without ownership verification"
+    severity: WARNING
+    metadata:
+      cwe: "CWE-639: Authorization Bypass Through User-Controlled Key"
+      owasp: "A01:2021 - Broken Access Control"
+      category: security
+    patterns:
+      - pattern: |
+          $COMMENT_ID = $_GET['comment_id'] ?? ...;
+          ...
+          $SQL = "DELETE FROM comments WHERE id = ...";
+
+  - id: php-weak-database-root-connection
+    languages: [php]
+    message: "Database connection defaults to root user with potential elevated FILE privileges"
+    severity: WARNING
+    metadata:
+      cwe: "CWE-250: Execution with Unnecessary Privileges"
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: security
+    patterns:
+      - pattern: getenv('DB_USER') ?: 'root'
+
+  - id: php-display-errors-enabled
+    languages: [php]
+    message: "Database errors explicitly printed to client, facilitating error-based SQL injection"
+    severity: WARNING
+    metadata:
+      cwe: "CWE-209: Generation of Error Message Containing Sensitive Information"
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: security
+    patterns:
+      - pattern: mysqli_error(...)

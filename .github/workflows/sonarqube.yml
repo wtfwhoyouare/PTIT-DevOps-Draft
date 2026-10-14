@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   analyze:
-    name: PHP analysis and report
+    name: SonarQube SAST & Quality Gate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -136,7 +136,8 @@ jobs:
           pipx run semgrep scan \
             --config "p/owasp-top-ten" \
             --config "p/php" \
-            --config "ci/semgrep-rules.yml" \
+            --config "p/security-audit" \
+            --config "p/cwe-top-25" \
             --json -o reports/semgrep/semgrep.json \
             InlaneWeb/web/src || true
 

@@ -1,9 +1,16 @@
-# DevOps-Draft
+# PTIT-DevOps-Draft
 
 Dự án PHP 8.2 / Docker phục vụ đào tạo SQL Injection. Mã nguồn ứng dụng nằm trong
 [`InlaneWeb/`](InlaneWeb/README.md); ứng dụng cố ý chứa lỗ hổng.
 
-## SonarQube trên GitHub Actions
+## Quy trình phát triển nhóm & DevSecOps Pipeline
+
+- Các thành viên làm việc trên các nhánh tính năng (`dev`, `feature/*`).
+- Khi hoàn thành, tạo Pull Request và **merge vào `main`**: Pipeline GitHub Actions sẽ **tự động kích hoạt** song song:
+  1. **SonarQube Community Build:** Đánh giá chất lượng mã nguồn (Code Quality, Bugs, Độ tin cậy).
+  2. **Semgrep SAST:** Quét chuyên sâu các lỗ hổng an toàn thông tin (SQL Injection, XSS, Cấu hình an toàn).
+
+## SonarQube & Semgrep trên GitHub Actions
 
 Workflow [SonarQube](.github/workflows/sonarqube.yml) chạy khi push lên `main`,
 hoặc chạy thủ công trong **Actions → SonarQube → Run workflow** (chọn `main`).

@@ -107,7 +107,7 @@ class Api:
 def read_properties(path: Path) -> dict[str, str]:
     return {
         key.strip(): value.strip()
-        for line in path.read_text(encoding="utf-8").splitlines()
+        for line in path.read_text(encoding="utf-8-sig").splitlines()
         if line.strip() and not line.lstrip().startswith("#") and "=" in line
         for key, value in [line.split("=", 1)]
     }

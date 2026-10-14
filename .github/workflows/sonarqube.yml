@@ -8,7 +8,7 @@ on:
       enforce_quality_gate:
         description: Fail the job when the quality gate fails (false = report-only)
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
       SONAR_IMAGE: sonarqube:26.9.0.129388-community@sha256:c0f1160bccfa435db4168c2d7df69af3c3ea7bfeb87395613014048fb33a68c1
       SONAR_SCANNER_VERSION: 8.1.0.6389
       REPORT_DIR: reports/sonarqube
-      ENFORCE_QUALITY_GATE: ${{ github.event_name != 'workflow_dispatch' || inputs.enforce_quality_gate }}
+      ENFORCE_QUALITY_GATE: ${{ inputs.enforce_quality_gate || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

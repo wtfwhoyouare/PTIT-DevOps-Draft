@@ -146,7 +146,7 @@ def bootstrap(api: Api, properties: dict, report_dir: Path, timeout: int):
 
     # Only for the brand-new, loopback-bound server created by this workflow.
     api.password = "admin"
-    admin_password = secrets.token_urlsafe(32)
+    admin_password = secrets.token_urlsafe(32) + "!Aa1@"
     job_secret("SONAR_ADMIN_PASSWORD", admin_password)
     api.request("users/change_password", {
         "login": "admin", "previousPassword": "admin", "password": admin_password,

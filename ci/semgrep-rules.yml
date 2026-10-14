@@ -54,7 +54,7 @@ rules:
       owasp: "A05:2021 - Security Misconfiguration"
       category: security
     patterns:
-      - pattern: getenv('DB_USER') ?: 'root'
+      - pattern: "getenv('DB_USER') ?: 'root'"
 
   - id: php-display-errors-enabled
     languages: [php]
@@ -65,4 +65,4 @@ rules:
       owasp: "A05:2021 - Security Misconfiguration"
       category: security
     patterns:
-      - pattern: mysqli_error(...)
+      - pattern: "mysqli_error(...)"
